@@ -48,7 +48,7 @@ class Customer(BaseModel):
     name = models.CharField(max_length=255)
     preferred_contact_mode = models.CharField(max_length=10, choices=CONTACT_MODE_CHOICES, default="email")
     organization = models.ForeignKey(
-        Organization, on_delete=models.SET_NULL, null=True, blank=True, related_name="students"
+        Organization, on_delete=models.SET_NULL, null=True, blank=True, related_name="customers"
     )
 
     def __str__(self):
@@ -70,11 +70,11 @@ class ContactInfo(BaseModel):
     is_primary = models.BooleanField(default=False)
 
     def __str__(self):
-        return f"{self.customer.name} - {self.value} ({self.contact_type})"
+        return f"{self.customer.name} - {self.value} ({self.contact_type})" 
 
 
 
-class LeadStatus(BaseModel):
+class LeadStatus(models.Model):
     code = models.CharField(max_length=50, unique=True)
     label = models.CharField(max_length=100)
 
@@ -94,7 +94,7 @@ class Lead(BaseModel):
 
 
 
-class DealStage(BaseModel):
+class DealStage(models.Model):
     code = models.CharField(max_length=50, unique=True)
     label = models.CharField(max_length=100)
 
@@ -129,3 +129,30 @@ class Activity(BaseModel):
 
     def __str__(self):
         return f"{self.activity_type} for {self.deal}"
+    
+class TaskStatus(models.Model):  
+    code = models.CharField(max_length=50, unique=True)
+    label = models.CharField(max_length=100)
+
+    def __str__(self):
+        return self.label
+    
+class Task(BaseModel):
+    title = models.CharField(max_length=255)
+    description = models.TextField(blank=True, null=True)
+    created_by = models.ForeignKey(User,on_delete=models.SET_NULL, null=True,related_name="created_tasks")
+    assigned_to = models.ForeignKey(User, on_delete=models.SET_NULL, null=True,blank=True, related_name="assigned_tasks")
+
+    customer = models.ForeignKey(Customer, on_delete=models.SET_NULL, null=True, blank=True, related_name="tasks")
+    lead = models.ForeignKey(Lead, on_delete=models.SET_NULL, null=True, blank=True, related_name="tasks")
+    deal = models.ForeignKey(Deal, on_delete=models.SET_NULL, null=True, blank=True, related_name="tasks")
+
+    priority = models.CharField(max_length=10, choices=[("low", "Low"), ("medium", "Medium"),("high", "High"), ("urgent", "Urgent"),], default="medium")
+    due_date = models.DateTimeField(blank=True, null=True)
+
+    def __str__(self):
+        return f"{self.title} (Assigned to: {self.assigned_to})"
+    
+#activity-deal
+#dealstage,task
+#statusdynamic, contactmult
