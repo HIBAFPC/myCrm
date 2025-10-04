@@ -37,65 +37,26 @@ class Organization(models.Model):
     def __str__(self):
         return self.name
 
-
-
-class Customer(BaseModel):
-
-    name = models.CharField(max_length=50)
-    organization = models.ForeignKey(
-        Organization, on_delete=models.SET_NULL, null=True, blank=True, related_name="customers"
-    )
+        
+class ActivityType(models.Model):
+    code = models.CharField(max_length=50, unique=True,default='email')   
+    label = models.CharField(max_length=100,default='Email')              
 
     def __str__(self):
-        return self.name
+        return self.label
 
-
-
-class ContactInfo(models.Model):
-    CONTACT_TYPE_CHOICES = [
-        ("email", "Email"),
-        ("phone", "Phone"),
-        ("whatsapp", "WhatsApp"),
-    ]
-
-    customer = models.ForeignKey(Customer, on_delete=models.CASCADE, related_name="contact_infos")
-    contact_type = models.CharField(max_length=20, choices=CONTACT_TYPE_CHOICES)
-    value = models.CharField(max_length=200)
-    label = models.CharField(max_length=50, blank=True, null=True)  
-    is_primary = models.BooleanField(default=False)
-
-
-    def __str__(self):
-        return f"{self.customer.name} - {self.value} ({self.contact_type})" 
-    
-    
-    def clean(self):
-        if self.is_primary:
-            qs = ContactInfo.objects.filter(customer=self.customer, is_primary=True)
-            if self.pk:
-                qs = qs.exclude(pk=self.pk) 
-            if qs.exists():
-                raise ValidationError("This customer already has a primary contact.")
 
 class Activity(BaseModel):
-    ACTIVITY_TYPE_CHOICES = [
-         
-        ("email", "Email"),
-        ("call", "Call"),
-        ("whatsapp", "Whatsapp"),
-        ("meeting", "Meeting"),
-        
-    ]
-
+    title = models.CharField(max_length=200,default="Contact")
     assigned_to = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name="assigned_to")
 
-    activity_type = models.CharField(max_length=20, choices=ACTIVITY_TYPE_CHOICES)
+    activity_type = models.ForeignKey(ActivityType, on_delete=models.SET_NULL, null=True, blank=False, related_name="activities")
     notes = models.TextField(blank=True, null=True)
     scheduled_for = models.DateTimeField()
     completed = models.BooleanField(default=False)
 
     def __str__(self):
-        return f"{self.activity_type}"
+        return f"{self.title} ({self.activity_type})"
     
 class LeadStatus(models.Model):
     code = models.CharField(max_length=50, unique=True)
@@ -113,15 +74,19 @@ class LeadStatusTransition(models.Model):
         unique_together = ("from_status", "to_status")
     def __str__(self):
         return f"{self.from_status} → {self.to_status}"
-
+1
 class Lead(BaseModel):
-    customer = models.ForeignKey(Customer, on_delete=models.CASCADE, related_name="leads")
+    name = models.CharField(max_length=50)
+    organization = models.ForeignKey(
+        Organization, on_delete=models.SET_NULL, null=True, blank=True, related_name="customers"
+    )
+    
     status = models.ForeignKey(LeadStatus, on_delete=models.SET_NULL, null=True, blank=True)
     assigned_to = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name="assigned_leads")
     notes = models.TextField(blank=True, null=True)
     activities = models.ManyToManyField(Activity, blank=True, related_name="leads")
     def __str__(self):
-        return f"{self.customer.name} ({self.status})"
+        return f"{self.name} ({self.status.label if self.status else 'No Status'})"
     
     def clean(self):
         if self.pk and self.status:  
@@ -131,7 +96,45 @@ class Lead(BaseModel):
                     from_status=old_status, to_status=self.status
                 ).exists():
                     raise ValidationError(f"Invalid transition: {old_status} → {self.status}")
+                
+class ContactInfo(models.Model):
+    CONTACT_TYPE_CHOICES = [
+        ("email", "Email"),
+        ("phone", "Phone"),
+        ("whatsapp", "WhatsApp"),
+    ]
+
+    lead = models.ForeignKey(Lead, on_delete=models.CASCADE, related_name="contact_infos",default=1)
+    contact_type = models.CharField(max_length=20, choices=CONTACT_TYPE_CHOICES)
+    value = models.CharField(max_length=200)
+    label = models.CharField(max_length=50, blank=True, null=True)  
+    is_primary = models.BooleanField(default=False)
+
+
+    def __str__(self):
+        return f"{self.lead.name} - {self.value} ({self.contact_type})" 
     
+    
+    def clean(self):
+        if self.is_primary:
+            qs = ContactInfo.objects.filter(lead=self.lead, is_primary=True)
+            if self.pk:
+                qs = qs.exclude(pk=self.pk) 
+            if qs.exists():
+                raise ValidationError("This lead already has a primary contact.")   
+class Student(BaseModel):
+    lead = models.OneToOneField(
+        Lead,
+        on_delete=models.CASCADE,
+        related_name="student"
+    )
+
+    enrollment_date = models.DateField(default=timezone.now)
+    student_id = models.CharField(max_length=50, unique=True)
+    course = models.CharField(max_length=200, blank=True, null=True) 
+
+    def __str__(self):
+        return f"{self.lead.name} (Student ID: {self.student_id})"
 
 class DealStage(models.Model):
     code = models.CharField(max_length=50, unique=True)
@@ -151,16 +154,24 @@ class DealStageTransition(models.Model):
         return f"{self.from_stage} → {self.to_stage}"
 
 class Deal(BaseModel):
-    customer = models.ForeignKey(Customer, on_delete=models.CASCADE, related_name="deals")
+    title = models.CharField(max_length=200,default="Untitled Deal")
+    customer = models.ForeignKey(Lead, on_delete=models.CASCADE, related_name="deals")
     stage = models.ForeignKey(DealStage, on_delete=models.SET_NULL, null=True, blank=True)
     expected_close_date = models.DateField(blank=True, null=True)
     assigned_to = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name="assigned_deals")
     activities = models.ManyToManyField(Activity, blank=True, related_name="deals")
     def __str__(self):
-        return f"Deal with {self.customer.name} - {self.stage}"
-
-   
-
+        return f"{self.title} with {self.customer.name} - ({self.stage.label if self.stage else 'No Stage'})"
+    
+    def clean(self):
+        if self.pk and self.stage:  
+            old_stage = Deal.objects.get(pk=self.pk).stage
+            if old_stage and old_stage != self.stage:
+                if not DealStageTransition.objects.filter(
+                    from_stage=old_stage, to_stage=self.stage
+                ).exists():
+                    raise ValidationError(f"Invalid transition: {old_stage} → {self.stage}")
+    
     
 class TaskStatus(models.Model):  
     code = models.CharField(max_length=50, unique=True)
