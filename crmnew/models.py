@@ -6,10 +6,17 @@ from django.contrib.auth.models import AbstractUser
 from django.utils import timezone
 from django.core.exceptions import ValidationError
 
+class Role(models.Model):
+    code = models.CharField(max_length=50, unique=True)
+    label = models.CharField(max_length=100)
+
+    def __str__(self):
+        return self.label
 
 class User(AbstractUser):
     ROLE_CHOICES = [
         ("admin", "Admin"),
+        ("sales_man", "Sales Manager"),
         ("sales_rep", "Sales Representative"),
         ("support", "Support Staff"),
     ]
@@ -77,9 +84,7 @@ class LeadStatusTransition(models.Model):
 1
 class Lead(BaseModel):
     name = models.CharField(max_length=50)
-    organization = models.ForeignKey(
-        Organization, on_delete=models.SET_NULL, null=True, blank=True, related_name="customers"
-    )
+    organization = models.ForeignKey( Organization, on_delete=models.SET_NULL, null=True, blank=True, related_name="customers" )
     
     status = models.ForeignKey(LeadStatus, on_delete=models.SET_NULL, null=True, blank=True)
     assigned_to = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name="assigned_leads")
@@ -98,36 +103,31 @@ class Lead(BaseModel):
                     raise ValidationError(f"Invalid transition: {old_status} → {self.status}")
                 
 class ContactInfo(models.Model):
-    CONTACT_TYPE_CHOICES = [
-        ("email", "Email"),
-        ("phone", "Phone"),
-        ("whatsapp", "WhatsApp"),
-    ]
 
-    lead = models.ForeignKey(Lead, on_delete=models.CASCADE, related_name="contact_infos",default=1)
-    contact_type = models.CharField(max_length=20, choices=CONTACT_TYPE_CHOICES)
+    class ContactType(models.TextChoices):
+        EMAIL = "email", "Email"
+        PHONE = "phone", "Phone"
+        WHATSAPP = "whatsapp", "WhatsApp"
+
+    lead = models.ForeignKey('Lead', on_delete=models.CASCADE, related_name="contact_infos")
+    contact_type = models.CharField( max_length=20, choices=ContactType.choices,)
     value = models.CharField(max_length=200)
-    label = models.CharField(max_length=50, blank=True, null=True)  
+    label = models.CharField(max_length=50, blank=True, null=True)
     is_primary = models.BooleanField(default=False)
 
-
     def __str__(self):
-        return f"{self.lead.name} - {self.value} ({self.contact_type})" 
-    
-    
+        return f"{self.lead.name} - {self.value} ({self.get_contact_type_display()})"
+
     def clean(self):
         if self.is_primary:
             qs = ContactInfo.objects.filter(lead=self.lead, is_primary=True)
             if self.pk:
-                qs = qs.exclude(pk=self.pk) 
+                qs = qs.exclude(pk=self.pk)
             if qs.exists():
-                raise ValidationError("This lead already has a primary contact.")   
+                raise ValidationError("This lead already has a primary contact.")
+  
 class Student(BaseModel):
-    lead = models.OneToOneField(
-        Lead,
-        on_delete=models.CASCADE,
-        related_name="student"
-    )
+    lead = models.OneToOneField( Lead,on_delete=models.CASCADE, related_name="student")
 
     enrollment_date = models.DateField(default=timezone.now)
     student_id = models.CharField(max_length=50, unique=True)

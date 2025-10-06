@@ -1,7 +1,7 @@
 from django.contrib import admin
 
 # Register your models here.
-from .models import User, Organization, Lead, LeadStatus, Deal, DealStage, Activity, TaskStatus, Task, ContactInfo, LeadStatusTransition, DealStageTransition, ActivityType,Student
+from .models import *
 
 admin.site.register(User)
 admin.site.register(Organization)
@@ -17,3 +17,4 @@ admin.site.register(LeadStatusTransition)
 admin.site.register(DealStageTransition)
 admin.site.register(ActivityType)
 admin.site.register(Student)
+admin.site.register(Role)
