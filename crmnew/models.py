@@ -6,26 +6,22 @@ from django.contrib.auth.models import AbstractUser
 from django.utils import timezone
 from django.core.exceptions import ValidationError
 
-class Role(models.Model):
+
+class UserType(models.Model):
     code = models.CharField(max_length=50, unique=True)
     label = models.CharField(max_length=100)
 
     def __str__(self):
         return self.label
 
+
 class User(AbstractUser):
-    ROLE_CHOICES = [
-        ("admin", "Admin"),
-        ("sales_man", "Sales Manager"),
-        ("sales_rep", "Sales Representative"),
-        ("support", "Support Staff"),
-    ]
-    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default="sales_rep")
-
-    def __str__(self):
-        return f"{self.username} ({self.role})"
-
-
+    
+    user_type = models.ForeignKey(
+        "UserType", on_delete=models.SET_NULL, null=True, blank=True, related_name="users"
+    )
+    def __str__(self): 
+      return f"{self.username} ({self.user_type})"
 
 class BaseModel(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
@@ -81,15 +77,18 @@ class LeadStatusTransition(models.Model):
         unique_together = ("from_status", "to_status")
     def __str__(self):
         return f"{self.from_status} → {self.to_status}"
-1
+   
 class Lead(BaseModel):
     name = models.CharField(max_length=50)
-    organization = models.ForeignKey( Organization, on_delete=models.SET_NULL, null=True, blank=True, related_name="customers" )
+    organizations = models.ManyToManyField('Organization', blank=True, related_name="leads" )
+    qualification = models.CharField(max_length=100, blank=True, null=True)
+    interests = models.TextField(blank=True, null=True)
     
     status = models.ForeignKey(LeadStatus, on_delete=models.SET_NULL, null=True, blank=True)
     assigned_to = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name="assigned_leads")
     notes = models.TextField(blank=True, null=True)
     activities = models.ManyToManyField(Activity, blank=True, related_name="leads")
+    next_followup = models.DateTimeField(blank=True, null=True)
     def __str__(self):
         return f"{self.name} ({self.status.label if self.status else 'No Status'})"
     
@@ -128,7 +127,7 @@ class ContactInfo(models.Model):
   
 class Student(BaseModel):
     lead = models.OneToOneField( Lead,on_delete=models.CASCADE, related_name="student")
-
+    
     enrollment_date = models.DateField(default=timezone.now)
     student_id = models.CharField(max_length=50, unique=True)
     course = models.CharField(max_length=200, blank=True, null=True) 
@@ -185,7 +184,7 @@ class Task(BaseModel):
     description = models.TextField(blank=True, null=True)
     created_by = models.ForeignKey(User,on_delete=models.SET_NULL, null=True,related_name="created_tasks")
     assigned_to = models.ForeignKey(User, on_delete=models.SET_NULL, null=True,blank=True, related_name="assigned_tasks")
-     
+    
     activity = models.ForeignKey(Activity, on_delete=models.CASCADE, null=True, blank=True, related_name="tasks")
     status = models.ForeignKey(TaskStatus, on_delete=models.SET_NULL, null=True, blank=True)
     
@@ -196,7 +195,7 @@ class Task(BaseModel):
     def __str__(self):
         return f"{self.title} (Assigned to: {self.assigned_to})"
 
-   
+
 #activity-deal
 #dealstage,task
 #statusdynamic, contactmult 
