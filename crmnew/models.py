@@ -51,8 +51,7 @@ class ActivityType(models.Model):
 
 class Activity(BaseModel):
     title = models.CharField(max_length=200,default="Contact")
-    assigned_to = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name="assigned_to")
-
+    assigned_to = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name="assigned_activities")
     activity_type = models.ForeignKey(ActivityType, on_delete=models.SET_NULL, null=True, blank=False, related_name="activities")
     notes = models.TextField(blank=True, null=True)
     scheduled_for = models.DateTimeField()
@@ -81,7 +80,7 @@ class LeadStatusTransition(models.Model):
 class Lead(BaseModel):
     name = models.CharField(max_length=50)
     organizations = models.ManyToManyField('Organization', blank=True, related_name="leads" )
-    qualification = models.CharField(max_length=100, blank=True, null=True)
+    qualification = models.CharField(max_length=200, blank=True, null=True)
     interests = models.TextField(blank=True, null=True)
     
     status = models.ForeignKey(LeadStatus, on_delete=models.SET_NULL, null=True, blank=True)
@@ -127,7 +126,6 @@ class ContactInfo(models.Model):
   
 class Student(BaseModel):
     lead = models.OneToOneField( Lead,on_delete=models.CASCADE, related_name="student")
-    
     enrollment_date = models.DateField(default=timezone.now)
     student_id = models.CharField(max_length=50, unique=True)
     course = models.CharField(max_length=200, blank=True, null=True) 
@@ -184,8 +182,7 @@ class Task(BaseModel):
     description = models.TextField(blank=True, null=True)
     created_by = models.ForeignKey(User,on_delete=models.SET_NULL, null=True,related_name="created_tasks")
     assigned_to = models.ForeignKey(User, on_delete=models.SET_NULL, null=True,blank=True, related_name="assigned_tasks")
-    
-    activity = models.ForeignKey(Activity, on_delete=models.CASCADE, null=True, blank=True, related_name="tasks")
+    activity = models.ForeignKey(Activity, on_delete=models.SET_NULL, null=True, blank=True, related_name="tasks")
     status = models.ForeignKey(TaskStatus, on_delete=models.SET_NULL, null=True, blank=True)
     
     priority = models.CharField(max_length=10, choices=[("low", "Low"), ("medium", "Medium"),("high", "High"), ("urgent", "Urgent"),], default="medium")
