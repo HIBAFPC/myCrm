@@ -12,7 +12,7 @@ class UserSerializer(serializers.ModelSerializer):
     user_type_id = serializers.PrimaryKeyRelatedField(
         queryset=UserType.objects.all(), source='user_type', write_only=True, required=False
     )
-    password = serializers.CharField(write_only=True, required=False)
+    password = serializers.CharField(write_only=True, required=True)
     class Meta:
         model = User
         fields = ['id', 'username', 'email', 'first_name', 'last_name', 'user_type', 'user_type_id','password']
@@ -50,7 +50,7 @@ class ActivitySerializer(serializers.ModelSerializer):
 
 class LeadStatusSerializer(serializers.ModelSerializer):
     class Meta:
-        model = LeadStatus
+        model = LeadStatus 
         fields = '__all__'
 
 class ContactInfoSerializer(serializers.ModelSerializer):
@@ -134,3 +134,16 @@ class TaskSerializer(serializers.ModelSerializer):
             'status_id', 'priority', 'due_date', 'depends_on',
             'created_at', 'updated_at'
         ]
+
+
+
+class RegisterSerializer(serializers.ModelSerializer):
+    password = serializers.CharField(write_only=True, required=True)
+
+    class Meta:
+        model = User
+        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'password']
+
+    def create(self, validated_data):
+        user = User.objects.create_user(**validated_data)
+        return user

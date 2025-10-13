@@ -1,6 +1,7 @@
 from django.urls import path
 # from rest_framework.routers import DefaultRouter
 from . import views
+from .views import LoginView,RegisterView
 from rest_framework_simplejwt.views import (
     TokenObtainPairView,
     TokenRefreshView,
@@ -8,20 +9,23 @@ from rest_framework_simplejwt.views import (
 
 urlpatterns = [
     
-    path('users/', views.UserListCreateView.as_view(), name='user-list'),
+    path('users/', views.UserListView.as_view(), name='user-list'),
+    path('users/create/', views.UserCreateView.as_view(), name='user-create'),
     path('users/<int:pk>/', views.UserDetailView.as_view(), name='user-detail'),
 
-    path('leads/', views.LeadListCreateView.as_view(), name='lead-list'),
+    path('leads/', views.LeadListView.as_view(), name='lead-list'),
     path('leads/<int:pk>/', views.LeadDetailView.as_view(), name='lead-detail'),
 
-    path('activities/', views.ActivityListCreateView.as_view(), name='activity-list'),
-    path('activities/<int:pk>/', views.ActivityDetailView.as_view(), name='activity-detail'),
+    path('activities/', views.ActivityListView.as_view(), name='activity-list'),
+    path('deals/', views.DealListView.as_view(), name='deal-list'),
+    path('tasks/', views.TaskListView.as_view(), name='task-list'),
 
-    path('deals/', views.DealListCreateView.as_view(), name='deal-list'),
-    path('deals/<int:pk>/', views.DealDetailView.as_view(), name='deal-detail'),
-
-    path('tasks/', views.TaskListCreateView.as_view(), name='task-list'),
-    path('tasks/<int:pk>/', views.TaskDetailView.as_view(), name='task-detail'),
+    path('login/', LoginView.as_view(), name='login'),
+    path('register/', RegisterView.as_view(), name='register'),
     path('token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    path('login/', LoginView.as_view(), name='login'),
+    path('register/', RegisterView.as_view(), name='register'),
+    
+
 ]
