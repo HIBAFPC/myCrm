@@ -17,7 +17,8 @@ admin.site.register(LeadStatusTransition)
 admin.site.register(DealStageTransition)
 admin.site.register(ActivityType)
 admin.site.register(Student)
-# admin.site.register(UserType)
+admin.site.register(Permission)
+
 @admin.register(User)
 class CustomUserAdmin(UserAdmin):
     model = User

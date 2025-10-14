@@ -1,229 +1,184 @@
-from django.shortcuts import render
-from rest_framework.permissions import AllowAny
-# Create your views here.
 from django.shortcuts import get_object_or_404
+from rest_framework import generics, status
+from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework_simplejwt.tokens import RefreshToken
+from django.contrib.auth import authenticate
 from rest_framework.views import APIView
-from rest_framework import generics,status
 from .models import User, Lead, Activity, Deal, Task
 from .serializers import *
-from rest_framework.permissions import IsAuthenticated, DjangoModelPermissions
-from .permissions import AuthDocPermission
+from .permissions import HasCustomPermission
 
-class UserListView(APIView):
-    permission_classes = [IsAuthenticated]  
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework.filters import SearchFilter, OrderingFilter
 
-    def get(self, request):
-        users = User.objects.all()
-        serializer = UserSerializer(users, many=True)
-        return Response(serializer.data)
+class UserListCreateView(generics.ListCreateAPIView):
+    queryset = User.objects.all()
+    serializer_class = UserSerializer
+    permission_classes = [IsAuthenticated, HasCustomPermission]
+    required_permissions = ["view_user"]
 
-class UserCreateView(APIView):
-    permission_classes = [IsAuthenticated]  
-
-    def post(self, request):
-        serializer = UserSerializer(data=request.data)
-        if serializer.is_valid():
-            user = serializer.save()
-            return Response(UserSerializer(user).data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-class UserDetailView(APIView):
-    permission_classes = [IsAuthenticated]
-    required_permissions =[]
-    def get(self, request, pk):
-        user = get_object_or_404(User, pk=pk)
-        serializer = UserSerializer(user)
-        return Response(serializer.data)
-
-    def put(self, request, pk):
-        user = get_object_or_404(User, pk=pk)
-        serializer = UserSerializer(user, data=request.data, partial=True)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-    def delete(self, request, pk):
-        user = get_object_or_404(User, pk=pk)
-        user.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
+    def get_permissions(self):
+        
+        if self.request.method == "POST":
+            self.required_permissions = ["add_user"]
+        return [permission() for permission in self.permission_classes]
 
 
-from rest_framework.permissions import DjangoModelPermissions
+class UserDetailView(generics.RetrieveUpdateDestroyAPIView):
+    queryset = User.objects.all()
+    serializer_class = UserSerializer
+    permission_classes = [IsAuthenticated, HasCustomPermission]
 
-class LeadListView(APIView):
-    permission_classes = [IsAuthenticated, AuthDocPermission]
-    required_permissions = ["crm.view_lead"]
-
-    def get(self, request):
-        leads = Lead.objects.select_related('status', 'assigned_to')
-        serializer = LeadSerializer(leads, many=True)
-        return Response(serializer.data)
-
-    def post(self, request):
-        self.required_permissions = ["crm.add_lead"]
-        serializer = LeadSerializer(data=request.data)
-        if serializer.is_valid():
-            lead = serializer.save()
-            return Response(LeadSerializer(lead).data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-class LeadDetailView(APIView):
-    permission_classes = [IsAuthenticated, AuthDocPermission]
-
-    def get(self, request, pk):
-        self.required_permissions = ["crm.view_lead"]
-        lead = get_object_or_404(Lead, pk=pk)
-        return Response(LeadSerializer(lead).data)
-
-    def put(self, request, pk):
-        self.required_permissions = ["crm.change_lead"]
-        lead = get_object_or_404(Lead, pk=pk)
-        serializer = LeadSerializer(lead, data=request.data, partial=True)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-    def delete(self, request, pk):
-        self.required_permissions = ["crm.delete_lead"]
-        lead = get_object_or_404(Lead, pk=pk)
-        lead.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
+    def get_permissions(self):
+        if self.request.method == "GET":
+            self.required_permissions = ["view_user"]
+        elif self.request.method in ["PUT", "PATCH"]:
+            self.required_permissions = ["change_user"]
+        elif self.request.method == "DELETE":
+            self.required_permissions = ["delete_user"]
+        return [permission() for permission in self.permission_classes]
 
 
 
-class ActivityListView(APIView):
-    permission_classes = [IsAuthenticated, AuthDocPermission]
-    required_permissions = ["crm.view_activity"]
+class LeadListCreateView(generics.ListCreateAPIView):
+    queryset = Lead.objects.all().select_related('status', 'assigned_to')
+    serializer_class = LeadSerializer
+    permission_classes = [IsAuthenticated, HasCustomPermission]
+    required_permissions = ["view_lead"]
+    
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    filterset_fields = ['status', 'assigned_to']
+    search_fields = ['name', 'interests', 'notes']
+    ordering_fields = ['created_at', 'name']
+    ordering = ['created_at']
 
-    def get(self, request):
-        activities = Activity.objects.select_related('activity_type', 'assigned_to')
-        serializer = ActivitySerializer(activities, many=True)
-        return Response(serializer.data)
+    def get_permissions(self):
+        if self.request.method == "POST":
+            self.required_permissions = ["add_lead"]
+        return [permission() for permission in self.permission_classes]
 
-    def post(self, request):
-        self.required_permissions = ["crm.add_activity"]
-        serializer = ActivitySerializer(data=request.data)
-        if serializer.is_valid():
-            activity = serializer.save()
-            return Response(ActivitySerializer(activity).data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-class ActivityDetailView(APIView):
-    permission_classes = [IsAuthenticated, AuthDocPermission]
+class LeadDetailView(generics.RetrieveUpdateDestroyAPIView):
+    queryset = Lead.objects.all().select_related('status', 'assigned_to')
+    serializer_class = LeadSerializer
+    permission_classes = [IsAuthenticated, HasCustomPermission]
 
-    def get(self, request, pk):
-        self.required_permissions = ["crm.view_activity"]
-        activity = get_object_or_404(Activity, pk=pk)
-        return Response(ActivitySerializer(activity).data)
-
-    def put(self, request, pk):
-        self.required_permissions = ["crm.change_activity"]
-        activity = get_object_or_404(Activity, pk=pk)
-        serializer = ActivitySerializer(activity, data=request.data, partial=True)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-    def delete(self, request, pk):
-        self.required_permissions = ["crm.delete_activity"]
-        activity = get_object_or_404(Activity, pk=pk)
-        activity.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
+    def get_permissions(self):
+        if self.request.method == "GET":
+            self.required_permissions = ["view_lead"]
+        elif self.request.method in ["PUT", "PATCH"]:
+            self.required_permissions = ["change_lead"]
+        elif self.request.method == "DELETE":
+            self.required_permissions = ["delete_lead"]
+        return [permission() for permission in self.permission_classes]
 
 
 
-class DealListView(APIView):
-    permission_classes = [IsAuthenticated, AuthDocPermission]
-    required_permissions = ["crm.view_deal"]
+class ActivityListCreateView(generics.ListCreateAPIView):
+    queryset = Activity.objects.all().select_related('activity_type', 'assigned_to')
+    serializer_class = ActivitySerializer
+    permission_classes = [IsAuthenticated, HasCustomPermission]
+    required_permissions = ["view_activity"]
+    
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    filterset_fields = ['activity_type', 'assigned_to']
+    search_fields = ['description', 'notes']
+    ordering_fields = ['created_at']
+    ordering = ['created_at']
 
-    def get(self, request):
-        deals = Deal.objects.select_related('customer', 'stage', 'assigned_to')
-        serializer = DealSerializer(deals, many=True)
-        return Response(serializer.data)
+    def get_permissions(self):
+        if self.request.method == "POST":
+            self.required_permissions = ["add_activity"]
+        return [permission() for permission in self.permission_classes]
 
-    def post(self, request):
-        self.required_permissions = ["crm.add_deal"]
-        serializer = DealSerializer(data=request.data)
-        if serializer.is_valid():
-            deal = serializer.save()
-            return Response(DealSerializer(deal).data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-class DealDetailView(APIView):
-    permission_classes = [IsAuthenticated, AuthDocPermission]
+class ActivityDetailView(generics.RetrieveUpdateDestroyAPIView):
+    queryset = Activity.objects.all().select_related('activity_type', 'assigned_to')
+    serializer_class = ActivitySerializer
+    permission_classes = [IsAuthenticated, HasCustomPermission]
 
-    def get(self, request, pk):
-        self.required_permissions = ["crm.view_deal"]
-        deal = get_object_or_404(Deal, pk=pk)
-        return Response(DealSerializer(deal).data)
-
-    def put(self, request, pk):
-        self.required_permissions = ["crm.change_deal"]
-        deal = get_object_or_404(Deal, pk=pk)
-        serializer = DealSerializer(deal, data=request.data, partial=True)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-    def delete(self, request, pk):
-        self.required_permissions = ["crm.delete_deal"]
-        deal = get_object_or_404(Deal, pk=pk)
-        deal.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
+    def get_permissions(self):
+        if self.request.method == "GET":
+            self.required_permissions = ["view_activity"]
+        elif self.request.method in ["PUT", "PATCH"]:
+            self.required_permissions = ["change_activity"]
+        elif self.request.method == "DELETE":
+            self.required_permissions = ["delete_activity"]
+        return [permission() for permission in self.permission_classes]
 
 
 
-class TaskListView(APIView):
-    permission_classes = [IsAuthenticated, AuthDocPermission]
-    required_permissions = ["crm.view_task"]
+class DealListCreateView(generics.ListCreateAPIView):
+    queryset = Deal.objects.all().select_related('customer', 'stage', 'assigned_to')
+    serializer_class = DealSerializer
+    permission_classes = [IsAuthenticated, HasCustomPermission]
+    required_permissions = ["view_deal"]
+    
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    filterset_fields = ['stage', 'customer', 'assigned_to']
+    search_fields = ['title', 'customer__name']
+    ordering_fields = ['expected_close_date', 'created_at']
+    ordering = ['expected_close_date']
 
-    def get(self, request):
-        tasks = Task.objects.select_related('status', 'assigned_to', 'created_by')
-        serializer = TaskSerializer(tasks, many=True)
-        return Response(serializer.data)
-
-    def post(self, request):
-        self.required_permissions = ["crm.add_task"]
-        serializer = TaskSerializer(data=request.data)
-        if serializer.is_valid():
-            task = serializer.save()
-            return Response(TaskSerializer(task).data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-class TaskDetailView(APIView):
-    permission_classes = [IsAuthenticated, AuthDocPermission]
-
-    def get(self, request, pk):
-        self.required_permissions = ["crm.view_task"]
-        task = get_object_or_404(Task, pk=pk)
-        return Response(TaskSerializer(task).data)
-
-    def put(self, request, pk):
-        self.required_permissions = ["crm.change_task"]
-        task = get_object_or_404(Task, pk=pk)
-        serializer = TaskSerializer(task, data=request.data, partial=True)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-    def delete(self, request, pk):
-        self.required_permissions = ["crm.delete_task"]
-        task = get_object_or_404(Task, pk=pk)
-        task.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
+    def get_permissions(self):
+        if self.request.method == "POST":
+            self.required_permissions = ["add_deal"]
+        return [permission() for permission in self.permission_classes]
 
 
-from django.contrib.auth import authenticate
-from rest_framework.response import Response
-from rest_framework_simplejwt.tokens import RefreshToken
+class DealDetailView(generics.RetrieveUpdateDestroyAPIView):
+    queryset = Deal.objects.all().select_related('customer', 'stage', 'assigned_to')
+    serializer_class = DealSerializer
+    permission_classes = [IsAuthenticated, HasCustomPermission]
+
+    def get_permissions(self):
+        if self.request.method == "GET":
+            self.required_permissions = ["view_deal"]
+        elif self.request.method in ["PUT", "PATCH"]:
+            self.required_permissions = ["change_deal"]
+        elif self.request.method == "DELETE":
+            self.required_permissions = ["delete_deal"]
+        return [permission() for permission in self.permission_classes]
+
+
+
+class TaskListCreateView(generics.ListCreateAPIView):
+    queryset = Task.objects.all().select_related('status', 'assigned_to', 'created_by')
+    serializer_class = TaskSerializer
+    permission_classes = [IsAuthenticated, HasCustomPermission]
+    required_permissions = ["view_task"]
+    
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    filterset_fields = ['status', 'assigned_to', 'created_by']
+    search_fields = ['title', 'description']
+    ordering_fields = ['due_date', 'created_at']
+    ordering = ['due_date']
+
+    def get_permissions(self):
+        if self.request.method == "POST":
+            self.required_permissions = ["add_task"]
+        return [permission() for permission in self.permission_classes]
+
+
+class TaskDetailView(generics.RetrieveUpdateDestroyAPIView):
+    queryset = Task.objects.all().select_related('status', 'assigned_to', 'created_by')
+    serializer_class = TaskSerializer
+    permission_classes = [IsAuthenticated, HasCustomPermission]
+
+    def get_permissions(self):
+        if self.request.method == "GET":
+            self.required_permissions = ["view_task"]
+        elif self.request.method in ["PUT", "PATCH"]:
+            self.required_permissions = ["change_task"]
+        elif self.request.method == "DELETE":
+            self.required_permissions = ["delete_task"]
+        return [permission() for permission in self.permission_classes]
+
+
 
 class LoginView(APIView):
-    permission_classes = []
+    permission_classes = [AllowAny]
 
     def post(self, request):
         username = request.data.get("username")
@@ -231,7 +186,7 @@ class LoginView(APIView):
 
         user = authenticate(username=username, password=password)
         if user is None:
-            return Response({"detail": "Invalid credentials"}, status=400)
+            return Response({"detail": "Invalid credentials"}, status=status.HTTP_400_BAD_REQUEST)
 
         refresh = RefreshToken.for_user(user)
         return Response({
@@ -244,14 +199,13 @@ class LoginView(APIView):
 class RegisterView(generics.CreateAPIView):
     queryset = User.objects.all()
     serializer_class = UserSerializer
-    permission_classes = [AllowAny]  
-    
+    permission_classes = [AllowAny]
+
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
 
-        
         refresh = RefreshToken.for_user(user)
         access_token = str(refresh.access_token)
 
@@ -260,3 +214,62 @@ class RegisterView(generics.CreateAPIView):
             "refresh": str(refresh),
             "access": access_token,
         }, status=status.HTTP_201_CREATED)
+        
+class LeadStatusListCreateView(generics.ListCreateAPIView):
+    queryset = LeadStatus.objects.all()
+    serializer_class = LeadStatusSerializer
+    permission_classes = [IsAuthenticated, HasCustomPermission]
+    required_permissions = {
+        'GET': ['view_leadstatus'],
+        'POST': ['add_leadstatus']
+    }
+
+class LeadStatusDetailView(generics.RetrieveUpdateDestroyAPIView):
+    queryset = LeadStatus.objects.all()
+    serializer_class = LeadStatusSerializer
+    permission_classes = [IsAuthenticated, HasCustomPermission]
+    required_permissions = {
+        'GET': ['view_leadstatus'],
+        'PUT': ['change_leadstatus'],
+        'PATCH': ['change_leadstatus'],
+        'DELETE': ['delete_leadstatus']
+    }
+    
+class DealStageListCreateView(generics.ListCreateAPIView):
+    queryset = DealStage.objects.all()
+    serializer_class = DealStageSerializer
+    permission_classes = [IsAuthenticated, HasCustomPermission]
+    required_permissions = {
+        'GET': ['view_dealstage'],
+        'POST': ['add_dealstage']
+    }
+
+class DealStageDetailView(generics.RetrieveUpdateDestroyAPIView):
+    queryset = DealStage.objects.all()
+    serializer_class = DealStageSerializer
+    permission_classes = [IsAuthenticated, HasCustomPermission]
+    required_permissions = {
+        'GET': ['view_dealstage'],
+        'PUT': ['change_dealstage'],
+        'PATCH': ['change_dealstage'],
+        'DELETE': ['delete_dealstage']
+    }
+class TaskStatusListCreateView(generics.ListCreateAPIView):
+    queryset = TaskStatus.objects.all()
+    serializer_class = TaskStatusSerializer
+    permission_classes = [IsAuthenticated, HasCustomPermission]
+    required_permissions = {
+        'GET': ['view_taskstatus'],
+        'POST': ['add_taskstatus']
+    }
+
+class TaskStatusDetailView(generics.RetrieveUpdateDestroyAPIView):
+    queryset = TaskStatus.objects.all()
+    serializer_class = TaskStatusSerializer
+    permission_classes = [IsAuthenticated, HasCustomPermission]
+    required_permissions = {
+        'GET': ['view_taskstatus'],
+        'PUT': ['change_taskstatus'],
+        'PATCH': ['change_taskstatus'],
+        'DELETE': ['delete_taskstatus']
+    }

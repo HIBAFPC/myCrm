@@ -7,10 +7,17 @@ from django.utils import timezone
 from django.core.exceptions import ValidationError
 
 
+
+class Permission(models.Model):
+    name = models.CharField(max_length=100, unique=True)
+    code = models.CharField(max_length=50, unique=True)
+    
+    def __str__(self):
+        return self.name
 class UserType(models.Model):
     code = models.CharField(max_length=50, unique=True)
     label = models.CharField(max_length=100)
-
+    permissions = models.ManyToManyField(Permission, blank=True)
     def __str__(self):
         return self.label
 
