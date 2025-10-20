@@ -36,4 +36,8 @@ urlpatterns = [
    
     path('deal-stages/', views.DealStageListCreateView.as_view(), name='deal-stage-list'),
     path('deal-stages/<int:pk>/', views.DealStageDetailView.as_view(), name='deal-stage-detail'),
+    
+    path('contactinfos/', views.ContactInfoListCreateView.as_view(), name='contactinfo-list'),
+    path('contactinfos/<int:pk>/', views.ContactInfoDetailView.as_view(), name='contactinfo-detail'),
+    
 ]

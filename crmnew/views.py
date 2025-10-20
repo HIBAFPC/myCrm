@@ -273,3 +273,41 @@ class TaskStatusDetailView(generics.RetrieveUpdateDestroyAPIView):
         'PATCH': ['change_taskstatus'],
         'DELETE': ['delete_taskstatus']
     }
+from .permissions import IsLeadOwnerOrAdmin
+class ContactInfoListCreateView(generics.ListCreateAPIView):
+   
+    serializer_class = ContactInfoSerializer
+    permission_classes = [IsAuthenticated, IsLeadOwnerOrAdmin]
+    
+    
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    filterset_fields = ['lead', 'contact_type', 'is_primary']
+    search_fields = ['value', 'label']
+
+    def get_queryset(self):
+        user = self.request.user
+        if user.is_staff or user.is_superuser:
+            return ContactInfo.objects.select_related('lead').all()
+        
+        return ContactInfo.objects.filter(lead__assigned_to=user)
+
+    def perform_create(self, serializer):
+       
+        lead = serializer.validated_data.get('lead')
+        user = self.request.user
+
+        if not (user.is_staff or user.is_superuser or lead.assigned_to == user):
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("You can only add contacts for your assigned leads.")
+
+        serializer.save()
+    
+class ContactInfoDetailView(generics.RetrieveUpdateDestroyAPIView):
+   
+    queryset = ContactInfo.objects.all().select_related('lead')
+    serializer_class = ContactInfoSerializer
+    permission_classes = [IsAuthenticated, IsLeadOwnerOrAdmin]
+
+    def get_permissions(self):
+
+        return [permission() for permission in self.permission_classes]

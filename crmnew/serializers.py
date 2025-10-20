@@ -6,7 +6,9 @@ class UserTypeSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserType
         fields = '__all__'
-
+        extra_kwargs = {
+            'permissions': {'write_only': True},
+        }
 class UserSerializer(serializers.ModelSerializer):
     user_type = UserTypeSerializer(read_only=True)
     user_type_id = serializers.PrimaryKeyRelatedField(
@@ -57,7 +59,19 @@ class ContactInfoSerializer(serializers.ModelSerializer):
     class Meta:
         model = ContactInfo
         fields = '__all__'
+    def validate(self, data):
+        lead = data.get('lead', getattr(self.instance, 'lead', None))
+        is_primary = data.get('is_primary', getattr(self.instance, 'is_primary', False))
 
+        if is_primary and lead:
+            qs = ContactInfo.objects.filter(lead=lead, is_primary=True)
+            if self.instance:
+                qs = qs.exclude(pk=self.instance.pk)
+            if qs.exists():
+                raise serializers.ValidationError(
+                    {"is_primary": "This lead already has a primary contact."}
+                )
+        return data
 class LeadSerializer(serializers.ModelSerializer):
     status = LeadStatusSerializer(read_only=True)
     status_id = serializers.PrimaryKeyRelatedField(
@@ -68,7 +82,7 @@ class LeadSerializer(serializers.ModelSerializer):
         queryset=User.objects.all(), source='assigned_to', write_only=True, required=False
     )
     contact_infos = ContactInfoSerializer(many=True, read_only=True)
-
+    
     class Meta:
         model = Lead
         fields = [
@@ -76,6 +90,21 @@ class LeadSerializer(serializers.ModelSerializer):
             'status_id', 'assigned_to', 'assigned_to_id',
             'notes', 'next_followup', 'created_at', 'updated_at', 'contact_infos'
         ]
+    def validate(self, data):
+        instance = getattr(self, 'instance', None)
+        new_status = data.get('status', getattr(instance, 'status', None))
+
+        if instance and new_status:
+            old_status = instance.status
+            if old_status and old_status != new_status:
+                valid = LeadStatusTransition.objects.filter(
+                    from_status=old_status, to_status=new_status
+                ).exists()
+                if not valid:
+                    raise serializers.ValidationError(
+                        {"status": f"Invalid transition: {old_status} → {new_status}"}
+                    )
+        return data
 
 
 class DealStageSerializer(serializers.ModelSerializer):
@@ -104,7 +133,21 @@ class DealSerializer(serializers.ModelSerializer):
             'stage', 'stage_id', 'expected_close_date',
             'assigned_to', 'assigned_to_id', 'created_at', 'updated_at'
         ]
+    def validate(self, data):
+        instance = getattr(self, 'instance', None)
+        new_stage = data.get('stage', getattr(instance, 'stage', None))
 
+        if instance and new_stage:
+            old_stage = instance.stage
+            if old_stage and old_stage != new_stage:
+                valid = DealStageTransition.objects.filter(
+                    from_stage=old_stage, to_stage=new_stage
+                ).exists()
+                if not valid:
+                    raise serializers.ValidationError(
+                        {"stage": f"Invalid transition: {old_stage} → {new_stage}"}
+                    )
+        return data
 
 class TaskStatusSerializer(serializers.ModelSerializer):
     class Meta:
@@ -147,3 +190,19 @@ class RegisterSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         user = User.objects.create_user(**validated_data)
         return user
+
+class LeadStatusSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = LeadStatus
+        fields = ['id', 'name', 'code', 'created_at', 'updated_at']
+        
+        
+class DealStageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = DealStage
+        fields = ['id', 'name', 'code', 'created_at', 'updated_at']
+        
+class TaskStatusSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TaskStatus
+        fields = ['id', 'name', 'code', 'created_at', 'updated_at']

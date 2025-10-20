@@ -14,10 +14,13 @@ class Permission(models.Model):
     
     def __str__(self):
         return self.name
+    
+    
 class UserType(models.Model):
     code = models.CharField(max_length=50, unique=True)
     label = models.CharField(max_length=100)
     permissions = models.ManyToManyField(Permission, blank=True)
+    
     def __str__(self):
         return self.label
 
