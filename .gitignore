@@ -6,4 +6,4 @@ __pycache__/
 *.pyc
 # Ignore environment files
 *.env
-db.sqlite3
+*.sqlite3

@@ -50,10 +50,7 @@ class ActivitySerializer(serializers.ModelSerializer):
         ]
 
 
-class LeadStatusSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = LeadStatus 
-        fields = '__all__'
+
 
 class ContactInfoSerializer(serializers.ModelSerializer):
     class Meta:
@@ -72,6 +69,12 @@ class ContactInfoSerializer(serializers.ModelSerializer):
                     {"is_primary": "This lead already has a primary contact."}
                 )
         return data
+    
+class LeadStatusSerializer(serializers.ModelSerializer):
+    name = serializers.CharField(source='label', read_only=True)
+    class Meta:
+        model = LeadStatus 
+        fields = ['id', 'code','name', 'color', 'order']
 class LeadSerializer(serializers.ModelSerializer):
     status = LeadStatusSerializer(read_only=True)
     status_id = serializers.PrimaryKeyRelatedField(
@@ -88,7 +91,7 @@ class LeadSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'name', 'qualification', 'interests', 'status',
             'status_id', 'assigned_to', 'assigned_to_id',
-            'notes', 'next_followup', 'created_at', 'updated_at', 'contact_infos'
+            'notes', 'next_followup', 'created_at', 'updated_at', 'contact_infos',"is_converted",
         ]
     def validate(self, data):
         instance = getattr(self, 'instance', None)
@@ -150,9 +153,10 @@ class DealSerializer(serializers.ModelSerializer):
         return data
 
 class TaskStatusSerializer(serializers.ModelSerializer):
+    name = serializers.CharField(source='label', read_only=True)
     class Meta:
-        model = TaskStatus
-        fields = '__all__'
+        model = TaskStatus 
+        fields = ['id', 'code','name', 'color']
 
 class TaskSerializer(serializers.ModelSerializer):
     
@@ -191,18 +195,12 @@ class RegisterSerializer(serializers.ModelSerializer):
         user = User.objects.create_user(**validated_data)
         return user
 
-class LeadStatusSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = LeadStatus
-        fields = ['id', 'name', 'code', 'created_at', 'updated_at']
+
         
         
 class DealStageSerializer(serializers.ModelSerializer):
+    name = serializers.CharField(source='label', read_only=True)
     class Meta:
-        model = DealStage
-        fields = ['id', 'name', 'code', 'created_at', 'updated_at']
+        model = DealStage 
+        fields = ['id', 'code','name', 'color', 'order']
         
-class TaskStatusSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = TaskStatus
-        fields = ['id', 'name', 'code', 'created_at', 'updated_at']

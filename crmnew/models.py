@@ -5,7 +5,7 @@ from django.db import models
 from django.contrib.auth.models import AbstractUser
 from django.utils import timezone
 from django.core.exceptions import ValidationError
-
+from .tasks import send_lead_converted_email
 
 
 class Permission(models.Model):
@@ -98,6 +98,7 @@ class Lead(BaseModel):
     notes = models.TextField(blank=True, null=True)
     activities = models.ManyToManyField(Activity, blank=True, related_name="leads")
     next_followup = models.DateTimeField(blank=True, null=True)
+    is_converted = models.BooleanField(default=False)
     def __str__(self):
         return f"{self.name} ({self.status.label if self.status else 'No Status'})"
     
@@ -109,6 +110,20 @@ class Lead(BaseModel):
                     from_status=old_status, to_status=self.status
                 ).exists():
                     raise ValidationError(f"Invalid transition: {old_status} → {self.status}")
+    def save(self, *args, **kwargs):
+        was_converted = False
+
+
+        if self.pk:
+            old = Lead.objects.get(pk=self.pk)
+            if not old.is_converted and self.is_converted:
+                was_converted = True
+
+        super().save(*args, **kwargs)
+
+        if was_converted:
+           
+            send_lead_converted_email.delay(self.name, self.assigned_to.email)
                 
 class ContactInfo(models.Model):
 

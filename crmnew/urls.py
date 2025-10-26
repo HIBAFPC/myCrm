@@ -19,7 +19,8 @@ urlpatterns = [
 
     path('leads/', views.LeadListCreateView.as_view(), name='lead-list-create'),
     path('leads/<int:pk>/', views.LeadDetailView.as_view(), name='lead-detail'),
-
+    path('token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),   
+    path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),  
     
     path('activities/', views.ActivityListCreateView.as_view(), name='activity-list-create'),
     path('activities/<int:pk>/', views.ActivityDetailView.as_view(), name='activity-detail'),
@@ -37,7 +38,9 @@ urlpatterns = [
     path('deal-stages/', views.DealStageListCreateView.as_view(), name='deal-stage-list'),
     path('deal-stages/<int:pk>/', views.DealStageDetailView.as_view(), name='deal-stage-detail'),
     
+    path('task-status/', views.TaskStatusListCreateView.as_view(), name='task-status-list'),
+    
     path('contactinfos/', views.ContactInfoListCreateView.as_view(), name='contactinfo-list'),
     path('contactinfos/<int:pk>/', views.ContactInfoDetailView.as_view(), name='contactinfo-detail'),
     
-]
+] 
