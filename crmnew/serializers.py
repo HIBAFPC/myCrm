@@ -56,6 +56,9 @@ class ContactInfoSerializer(serializers.ModelSerializer):
     class Meta:
         model = ContactInfo
         fields = '__all__'
+    lead = serializers.PrimaryKeyRelatedField(
+    queryset=Lead.objects.all(), required=True
+)
     def validate(self, data):
         lead = data.get('lead', getattr(self.instance, 'lead', None))
         is_primary = data.get('is_primary', getattr(self.instance, 'is_primary', False))

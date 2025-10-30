@@ -19,7 +19,6 @@ class UserListCreateView(generics.ListCreateAPIView):
     required_permissions = ["view_user"]
 
     def get_permissions(self):
-        
         if self.request.method == "POST":
             self.required_permissions = ["add_user"]
         return [permission() for permission in self.permission_classes]
@@ -57,7 +56,8 @@ class LeadListCreateView(generics.ListCreateAPIView):
         if self.request.method == "POST":
             self.required_permissions = ["add_lead"]
         return [permission() for permission in self.permission_classes]
-
+    def perform_create(self, serializer):
+         serializer.save(created_by=self.request.user)
 
 class LeadDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Lead.objects.all().select_related('status', 'assigned_to')
@@ -91,6 +91,9 @@ class ActivityListCreateView(generics.ListCreateAPIView):
         if self.request.method == "POST":
             self.required_permissions = ["add_activity"]
         return [permission() for permission in self.permission_classes]
+    
+    def perform_create(self, serializer):
+         serializer.save(created_by=self.request.user)
 
 
 class ActivityDetailView(generics.RetrieveUpdateDestroyAPIView):
@@ -126,7 +129,10 @@ class DealListCreateView(generics.ListCreateAPIView):
             self.required_permissions = ["add_deal"]
         return [permission() for permission in self.permission_classes]
 
-
+    def perform_create(self, serializer):
+         serializer.save(created_by=self.request.user)
+         
+         
 class DealDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Deal.objects.all().select_related('customer', 'stage', 'assigned_to')
     serializer_class = DealSerializer
@@ -159,7 +165,8 @@ class TaskListCreateView(generics.ListCreateAPIView):
         if self.request.method == "POST":
             self.required_permissions = ["add_task"]
         return [permission() for permission in self.permission_classes]
-
+    def perform_create(self, serializer):
+         serializer.save(created_by=self.request.user)
 
 class TaskDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Task.objects.all().select_related('status', 'assigned_to', 'created_by')
@@ -175,7 +182,7 @@ class TaskDetailView(generics.RetrieveUpdateDestroyAPIView):
             self.required_permissions = ["delete_task"]
         return [permission() for permission in self.permission_classes]
 
-
+    
 
 class LoginView(APIView):
     permission_classes = [AllowAny]
@@ -296,9 +303,9 @@ class ContactInfoListCreateView(generics.ListCreateAPIView):
         lead = serializer.validated_data.get('lead')
         user = self.request.user
 
-        if not (user.is_staff or user.is_superuser or lead.assigned_to == user):
+        if not (user.is_superuser or lead.assigned_to == user or lead.created_by==user):
             from rest_framework.exceptions import PermissionDenied
-            raise PermissionDenied("You can only add contacts for your assigned leads.")
+            raise PermissionDenied("This lead is neither created by you nor assigned to you")
 
         serializer.save()
     

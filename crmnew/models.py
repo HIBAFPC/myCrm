@@ -36,7 +36,7 @@ class User(AbstractUser):
 class BaseModel(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-
+    created_by = models.ForeignKey( User, on_delete=models.SET_NULL,null=True,blank=True,related_name="created_%(class)ss")
     class Meta:
         abstract = True
 
@@ -182,6 +182,7 @@ class Deal(BaseModel):
     expected_close_date = models.DateField(blank=True, null=True)
     assigned_to = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name="assigned_deals")
     activities = models.ManyToManyField(Activity, blank=True, related_name="deals")
+    
     def __str__(self):
         return f"{self.title} with {self.customer.name} - ({self.stage.label if self.stage else 'No Stage'})"
     
@@ -205,7 +206,7 @@ class TaskStatus(models.Model):
 class Task(BaseModel):
     title = models.CharField(max_length=200)
     description = models.TextField(blank=True, null=True)
-    created_by = models.ForeignKey(User,on_delete=models.SET_NULL, null=True,related_name="created_tasks")
+    
     assigned_to = models.ForeignKey(User, on_delete=models.SET_NULL, null=True,blank=True, related_name="assigned_tasks")
     activity = models.ForeignKey(Activity, on_delete=models.SET_NULL, null=True, blank=True, related_name="tasks")
     status = models.ForeignKey(TaskStatus, on_delete=models.SET_NULL, null=True, blank=True)
