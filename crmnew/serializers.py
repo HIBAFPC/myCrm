@@ -114,9 +114,10 @@ class LeadSerializer(serializers.ModelSerializer):
 
 
 class DealStageSerializer(serializers.ModelSerializer):
+    name = serializers.CharField(source='label', read_only=True)
     class Meta:
-        model = DealStage
-        fields = '__all__'
+        model = DealStage 
+        fields = ['id', 'code','name', 'color', 'order']
 
 class DealSerializer(serializers.ModelSerializer):
     stage = DealStageSerializer(read_only=True)
@@ -201,9 +202,5 @@ class RegisterSerializer(serializers.ModelSerializer):
 
         
         
-class DealStageSerializer(serializers.ModelSerializer):
-    name = serializers.CharField(source='label', read_only=True)
-    class Meta:
-        model = DealStage 
-        fields = ['id', 'code','name', 'color', 'order']
+
         

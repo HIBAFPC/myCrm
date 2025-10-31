@@ -26,6 +26,10 @@ class UserType(models.Model):
 
 
 class User(AbstractUser):
+    email = models.EmailField(unique=True)
+
+    USERNAME_FIELD = 'email'
+    REQUIRED_FIELDS = ['username']
     
     user_type = models.ForeignKey(
         "UserType", on_delete=models.SET_NULL, null=True, blank=True, related_name="users"

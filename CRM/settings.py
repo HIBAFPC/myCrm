@@ -98,6 +98,9 @@ DATABASES = {
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
 AUTH_USER_MODEL = "crmnew.User"
 
+AUTHENTICATION_BACKENDS = [
+    'django.contrib.auth.backends.ModelBackend',
+]
 
 AUTH_PASSWORD_VALIDATORS = [
     {
